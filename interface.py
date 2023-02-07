@@ -4,24 +4,25 @@ import cv2
 import numpy as np
 import pyautogui
 from PIL import Image
-from intelligence import evaluate_action
-
-
-def decide_action(images, is_game_over):
-    return evaluate_action(images, is_game_over)
-
+import intelligence
+from intelligence import Intelligence
 
 def take_action(action_value):
     if action_value == 1:    
         pyautogui.press('up')
-    elif action_value -1:
+    elif action_value == 0:
         pyautogui.press('down') 
 
 
+def preprocess(image, width, height):
+    cropped_img = image.crop((0, 80, 650, 205))
+    return cropped_img.resize((width, height))
+
+
 saved_action = 1
-action_interval = 0.25
-image_count = 10
-last_img = None
+action_interval = 0.2
+
+intel = Intelligence(80, 16, 5, 2)
 
 time.sleep(3)
 
@@ -31,7 +32,10 @@ while True:
     first_img = None
     last_img = None
 
-    for i in range(image_count):
+    saved_action = intel.evaluate_action(images)
+    take_action(saved_action)
+
+    for i in range(intel.image_count):
         # The screen part to capture
         monitor = {"top": 250, "left": 325, "width": 650, "height": 205}
         output = str(i) + "_sct-{top}x{left}_{width}x{height}.png".format(**monitor)
@@ -39,32 +43,36 @@ while True:
         # Grab the data
         sct_img = mss.mss().grab(monitor)
         img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX").convert("L")
-        if i == image_count-2:
+        if i == intel.image_count-2:
             first_img = img
-        elif i == image_count-1:
+        elif i == intel.image_count-1:
             last_img = img
 
-        cropped_img = img.crop((0, 80, 650, 205))
-        resized_img = cropped_img.resize((160, 25))
-        data = np.asarray(resized_img, dtype="int32")
+        # image preprocessing
+        processed_img = preprocess(img, intel.width, intel.height)
+        data = np.asarray(processed_img, dtype="int32")
+        #print(data.shape)
 
-        # Save to the picture file
-        img.save(output, "PNG")
-        resized_img.save("resized_" + output, "PNG")
+        # Debug: Save to png
+        #img.save(output, "PNG")
+        #processed_img.save("processed_" + output, "PNG")
 
         # each loop
-        take_action(saved_action)
-        time.sleep(action_interval/image_count)
+        if saved_action == 0:
+            take_action(saved_action)
+        time.sleep(action_interval/intel.image_count)
         images.append(data)
-        print(output)
 
     if np.all(np.equal(first_img, last_img)):
         game_over = True
-        break
-        
-    saved_action = decide_action(images, game_over)
+    
+    intel.receive_reward(game_over)
+
     if game_over:
+        pyautogui.press('up')
+    if cv2.waitKey(200) & 0xFF == ord('q'):
         break
 
+intel.show_results()
 print("Game over!")
 
