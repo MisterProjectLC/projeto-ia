@@ -1,3 +1,13 @@
 
 train/
 logs/
+train/best_model_1000.zip
+train/best_model_10000.zip
+train/best_model_2000.zip
+train/best_model_3000.zip
+train/best_model_4000.zip
+train/best_model_5000.zip
+train/best_model_6000.zip
+train/best_model_7000.zip
+train/best_model_8000.zip
+train/best_model_9000.zip
